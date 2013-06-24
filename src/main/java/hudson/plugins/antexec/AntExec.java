@@ -15,7 +15,7 @@
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * FITNESS FOR A PARTICULAR PURPOSE AND NON INFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
@@ -33,9 +33,7 @@ import hudson.util.FormValidation;
 import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.util.VariableResolver;
-import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 import org.xml.sax.*;
 import org.xml.sax.helpers.XMLReaderFactory;
@@ -46,6 +44,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.jenkinsci.plugins.tokenmacro.MacroEvaluationException;
+import org.jenkinsci.plugins.tokenmacro.TokenMacro;
 
 /**
  * Invokes the Apache Ant script entered on the hudson build configuration.
@@ -62,22 +64,26 @@ public class AntExec extends Builder {
     private final String scriptName;
     private final String properties;
     private final String antOpts;
+    private final Boolean keepBuildfile;
     private final Boolean verbose;
     private final Boolean emacs;
+    private final Boolean noAntcontrib;
     private final String antName;
 
     // Fields in config.groovy must match the parameter names in the "DataBoundConstructor"
     @SuppressWarnings("ALL")
     @DataBoundConstructor
-    public AntExec(String scriptSource, String extendedScriptSource, String scriptName, String properties, String antName, String antOpts, Boolean verbose, Boolean emacs) {
+    public AntExec(String scriptSource, String extendedScriptSource, String scriptName, String properties, String antName, String antOpts, Boolean keepBuildfile, Boolean verbose, Boolean emacs, Boolean noAntcontrib) {
         this.scriptSource = scriptSource;
         this.extendedScriptSource = extendedScriptSource;
         this.scriptName = scriptName;
         this.properties = properties;
+        this.keepBuildfile = keepBuildfile;
         this.antName = antName;
         this.antOpts = antOpts;
         this.verbose = verbose;
         this.emacs = emacs;
+        this.noAntcontrib = noAntcontrib;
     }
 
     /**
@@ -130,6 +136,15 @@ public class AntExec extends Builder {
     /**
      * Returns checkbox boolean from job configuration screen
      *
+     * @return Boolean keepBuildfile
+     */
+    public Boolean getKeepBuildfile() {
+        return keepBuildfile;
+    }
+
+    /**
+     * Returns checkbox boolean from job configuration screen
+     *
      * @return Boolean verbose
      */
     public Boolean getVerbose() {
@@ -139,10 +154,19 @@ public class AntExec extends Builder {
     /**
      * Returns checkbox boolean from job configuration screen
      *
-     * @return Boolean verbose
+     * @return Boolean emacs
      */
     public Boolean getEmacs() {
         return emacs;
+    }
+
+    /**
+     * Returns checkbox boolean from job configuration screen
+     *
+     * @return Boolean noAntcontrib
+     */
+    public Boolean getNoAntcontrib() {
+        return noAntcontrib;
     }
 
     /**
@@ -159,6 +183,15 @@ public class AntExec extends Builder {
     @Override
     public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) throws IOException, InterruptedException {
         ArgumentListBuilder args = new ArgumentListBuilder();
+        String scriptSourceResolved = scriptSource;
+        String extendedScriptSourceResolved = extendedScriptSource;
+        try {
+            //Resolve all the envirionment variables and properties before creating the build.xml
+            scriptSourceResolved = TokenMacro.expandAll(build, listener, scriptSource);
+            extendedScriptSourceResolved = TokenMacro.expandAll(build, listener, extendedScriptSource);
+        } catch (MacroEvaluationException ex) {
+            Logger.getLogger(AntExec.class.getName()).log(Level.SEVERE, null, ex);
+        }
         EnvVars env = build.getEnvironment(listener);
         env.overrideAll(build.getBuildVariables());
 
@@ -175,8 +208,9 @@ public class AntExec extends Builder {
             args.add(exe);
         }
 
+
         //Create Ant build.xml file
-        FilePath buildFile = makeBuildFile(scriptName, scriptSource, extendedScriptSource, build);
+        FilePath buildFile = makeBuildFile(scriptName, scriptSourceResolved, extendedScriptSourceResolved, build);
 
         //Make archive copy of build file to job directory
         buildFile.copyTo(new FilePath(new File(build.getRootDir(), buildXml)));
@@ -186,7 +220,8 @@ public class AntExec extends Builder {
         @SuppressWarnings("unchecked") VariableResolver<String> vr = build.getBuildVariableResolver();
         @SuppressWarnings("unchecked") Set<String> sensitiveVars = build.getSensitiveBuildVariables();
         //noinspection unchecked
-        args.addKeyValuePairs("-D", build.getBuildVariables(), sensitiveVars);
+
+        //Resolve the properties passed
         args.addKeyValuePairsFromPropertyString("-D", properties, vr, sensitiveVars);
 
         if (ai != null)
@@ -196,7 +231,7 @@ public class AntExec extends Builder {
         }
 
         //Get and prepare ant-contrib.jar
-        if (getDescriptor().useAntContrib()) {
+        if (noAntcontrib != null && !noAntcontrib) {
             //TODO: Replace this with better methot
             if (verbose != null && verbose) listener.getLogger().println(Messages.AntExec_UseAntContribTasks());
             FilePath antContribJarOnMaster = new FilePath(Hudson.getInstance().getRootPath(), "plugins/antexec/META-INF/lib/ant-contrib.jar");
@@ -224,11 +259,11 @@ public class AntExec extends Builder {
             args = new ArgumentListBuilder(newArgs.toArray(new String[newArgs.size()]));
         }
 
-        //Content of scriptSource and properties (only if verbose is true
+        //Content of scriptSourceResolved and properties (only if verbose is true
         if (verbose != null && verbose) {
             listener.getLogger().println();
             listener.getLogger().println(Messages.AntExec_DebugScriptSourceFieldBegin());
-            listener.getLogger().println(scriptSource);
+            listener.getLogger().println(scriptSourceResolved);
             listener.getLogger().println(Messages.AntExec_DebugScriptSourceFieldEnd());
             listener.getLogger().println();
             listener.getLogger().println(Messages.AntExec_DebugPropertiesFieldBegin());
@@ -245,6 +280,12 @@ public class AntExec extends Builder {
                 r = launcher.launch().cmds(args).envs(env).stdout(aca).pwd(buildFile.getParent()).join();
             } finally {
                 aca.forceEol();
+                //After the ant script has been executed, we delete the build.xml.
+                //The plugin is a way to run an Ant Script from a small source code, we shoudn't keep the build.xml
+                if (keepBuildfile != null && !keepBuildfile) {
+                    boolean deleteResponse = buildFile.delete();
+                    if (!deleteResponse) listener.getLogger().println("The temporary Ant Build Script coudn't be deleted");
+                }
             }
             return r == 0;
         } catch (IOException e) {
@@ -272,7 +313,6 @@ public class AntExec extends Builder {
     @SuppressWarnings("UnusedDeclaration")
     @Extension
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
-        private boolean useAntContrib;
 
         @CopyOnWrite
         private volatile Ant.AntInstallation[] installations = new Ant.AntInstallation[0];
@@ -319,17 +359,6 @@ public class AntExec extends Builder {
 
         public String getDisplayName() {
             return Messages.AntExec_DisplayName();
-        }
-
-        @Override
-        public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
-            useAntContrib = formData.getBoolean("useAntContrib");
-            save();
-            return super.configure(req, formData);
-        }
-
-        public boolean useAntContrib() {
-            return useAntContrib;
         }
     }
 

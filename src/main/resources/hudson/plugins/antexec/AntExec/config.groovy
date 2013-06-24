@@ -15,7 +15,7 @@
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * FITNESS FOR A PARTICULAR PURPOSE AND NON INFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
@@ -42,6 +42,10 @@ f.advanced {
     f.entry(title: _("Script name"), field: "scriptName", description: _("ScriptName description")) {
         f.expandableTextbox()
     }
+    f.entry(title: _("Keep buildfile"), field: "keepBuildfile") {
+        f.checkbox()
+        f.description {_("Do not delete build file so you can use it in one of the next build step again.")}
+    }
     f.entry(title: _("Extended script source"), field: "extendedScriptSource", class: "fixed-width", description: _("Extended source description")) {
         f.textarea()
     }
@@ -59,6 +63,10 @@ f.advanced {
         f.entry(title: _("Emacs mode"), field: "emacs") {
             f.checkbox()
             f.description {_("Enabling logging information without adornments")}
+        }
+        f.entry(title: _("Do not use Ant-Contrib"), field: "noAntcontrib") {
+            f.checkbox()
+            f.description {_("Disabling usage of Ant-Contrib Tasks in this build step.")}
         }
     }
 }
