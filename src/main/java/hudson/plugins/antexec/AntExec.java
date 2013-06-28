@@ -25,29 +25,29 @@ package hudson.plugins.antexec;
 
 import hudson.*;
 import hudson.model.*;
-//TODO: Dependency on hudson.tasks.Ant and hudson.tasks._ant.AntConsoleAnnotator
 import hudson.tasks.Ant;
+import hudson.tasks.BuildStepDescriptor;
+import hudson.tasks.Builder;
 import hudson.tasks._ant.AntConsoleAnnotator;
 import hudson.util.ArgumentListBuilder;
 import hudson.util.FormValidation;
-import hudson.tasks.Builder;
-import hudson.tasks.BuildStepDescriptor;
 import hudson.util.VariableResolver;
+import org.jenkinsci.plugins.tokenmacro.MacroEvaluationException;
+import org.jenkinsci.plugins.tokenmacro.TokenMacro;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
-import org.xml.sax.*;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.XMLReaderFactory;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.jenkinsci.plugins.tokenmacro.MacroEvaluationException;
-import org.jenkinsci.plugins.tokenmacro.TokenMacro;
 
 /**
  * Invokes the Apache Ant script entered on the hudson build configuration.
@@ -213,7 +213,7 @@ public class AntExec extends Builder {
         FilePath buildFile = makeBuildFile(scriptName, scriptSourceResolved, extendedScriptSourceResolved, build);
 
         //Make archive copy of build file to job directory
-        buildFile.copyTo(new FilePath(new File(build.getRootDir(), buildXml)));
+        //buildFile.copyTo(new FilePath(new File(build.getRootDir(), buildXml)));
 
         //Added build file to the command line
         args.add("-file", buildFile.getName());
