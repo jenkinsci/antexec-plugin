@@ -231,7 +231,7 @@ public class AntExec extends Builder {
         }
 
         //Get and prepare ant-contrib.jar
-        if (noAntcontrib != null && !noAntcontrib) {
+        if (noAntcontrib == null || !noAntcontrib) {
             //TODO: Replace this with better methot
             if (verbose != null && verbose) listener.getLogger().println(Messages.AntExec_UseAntContribTasks());
             FilePath antContribJarOnMaster = new FilePath(Hudson.getInstance().getRootPath(), "plugins/antexec/META-INF/lib/ant-contrib.jar");
