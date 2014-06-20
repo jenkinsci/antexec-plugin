@@ -46,6 +46,9 @@ f.advanced {
         f.checkbox()
         f.description {_("Do not delete build file so you can use it in one of the next build step again.")}
     }
+    f.entry(title: _("Use job parameters as properties"), field: "useJobParametersAsProperties") {
+        f.checkbox()
+    }
     f.entry(title: _("Extended script source"), field: "extendedScriptSource", class: "fixed-width", description: _("Extended source description")) {
         f.textarea()
     }

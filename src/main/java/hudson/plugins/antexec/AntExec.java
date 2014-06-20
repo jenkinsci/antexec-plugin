@@ -57,6 +57,7 @@ import java.util.logging.Logger;
  */
 @SuppressWarnings("ALL")
 public class AntExec extends Builder {
+
     private static final String myName = "antexec";
     protected static final String buildXml = myName + "_build.xml";
     private final String scriptSource;
@@ -68,12 +69,13 @@ public class AntExec extends Builder {
     private final Boolean verbose;
     private final Boolean emacs;
     private final Boolean noAntcontrib;
+    private final Boolean useJobParametersAsProperties;
     private final String antName;
 
     // Fields in config.groovy must match the parameter names in the "DataBoundConstructor"
     @SuppressWarnings("ALL")
     @DataBoundConstructor
-    public AntExec(String scriptSource, String extendedScriptSource, String scriptName, String properties, String antName, String antOpts, Boolean keepBuildfile, Boolean verbose, Boolean emacs, Boolean noAntcontrib) {
+    public AntExec(String scriptSource, String extendedScriptSource, String scriptName, String properties, String antName, String antOpts, Boolean keepBuildfile, Boolean verbose, Boolean emacs, Boolean noAntcontrib, Boolean useJobParametersAsProperties) {
         this.scriptSource = scriptSource;
         this.extendedScriptSource = extendedScriptSource;
         this.scriptName = scriptName;
@@ -84,10 +86,12 @@ public class AntExec extends Builder {
         this.verbose = verbose;
         this.emacs = emacs;
         this.noAntcontrib = noAntcontrib;
+        this.useJobParametersAsProperties = useJobParametersAsProperties;
     }
 
     /**
-     * Returns content of text area with script source from job configuration screen
+     * Returns content of text area with script source from job configuration
+     * screen
      *
      * @return String scriptSource
      */
@@ -96,7 +100,8 @@ public class AntExec extends Builder {
     }
 
     /**
-     * Returns content of text area with script source from job configuration screen
+     * Returns content of text area with script source from job configuration
+     * screen
      *
      * @return String extendedScriptSource
      */
@@ -104,9 +109,9 @@ public class AntExec extends Builder {
         return extendedScriptSource;
     }
 
-
     /**
-     * Returns content of text area with script name from job configuration screen
+     * Returns content of text area with script name from job configuration
+     * screen
      *
      * @return String scriptName
      */
@@ -115,7 +120,8 @@ public class AntExec extends Builder {
     }
 
     /**
-     * Returns content of text field with properties from job configuration screen
+     * Returns content of text field with properties from job configuration
+     * screen
      *
      * @return String properties
      */
@@ -124,8 +130,8 @@ public class AntExec extends Builder {
     }
 
     /**
-     * Returns content of text field with java/ant options from job configuration screen.
-     * It will be used for ANT_OPTS environment variable
+     * Returns content of text field with java/ant options from job
+     * configuration screen. It will be used for ANT_OPTS environment variable
      *
      * @return String antOpts
      */
@@ -170,12 +176,22 @@ public class AntExec extends Builder {
     }
 
     /**
+     * Returns checkbox boolean from job configuration screen
+     *
+     * @return Boolean useJobParametersAsProperties
+     */
+    public Boolean getUseJobParametersAsProperties() {
+        return useJobParametersAsProperties;
+    }
+
+    /**
      * @return Ant to invoke, or null to invoke the default one.
      */
     Ant.AntInstallation getAnt() {
         for (Ant.AntInstallation i : getDescriptor().getInstallations()) {
-            if (antName != null && antName.equals(i.getName()))
+            if (antName != null && antName.equals(i.getName())) {
                 return i;
+            }
         }
         return null;
     }
@@ -208,22 +224,27 @@ public class AntExec extends Builder {
             args.add(exe);
         }
 
-
         //Create Ant build.xml file
         FilePath buildFile = makeBuildFile(scriptName, scriptSourceResolved, extendedScriptSourceResolved, build);
 
         //Added build file to the command line
         args.add("-file", buildFile.getName());
-        @SuppressWarnings("unchecked") VariableResolver<String> vr = build.getBuildVariableResolver();
-        @SuppressWarnings("unchecked") Set<String> sensitiveVars = build.getSensitiveBuildVariables();
+        @SuppressWarnings("unchecked")
+        VariableResolver<String> vr = build.getBuildVariableResolver();
+        @SuppressWarnings("unchecked")
+        Set<String> sensitiveVars = build.getSensitiveBuildVariables();
         //noinspection unchecked
 
         //Resolve the properties passed
-        args.addKeyValuePairs("-D",build.getBuildVariables(),sensitiveVars);
+        if (useJobParametersAsProperties) {
+            args.addKeyValuePairs("-D", build.getBuildVariables(), sensitiveVars);
+        }
+        
         args.addKeyValuePairsFromPropertyString("-D", properties, vr, sensitiveVars);
 
-        if (ai != null)
+        if (ai != null) {
             ai.buildEnvVars(env);
+        }
         if (antOpts != null && antOpts.length() > 0 && !antOpts.equals("")) {
             env.put("ANT_OPTS", env.expand(antOpts));
         }
@@ -231,21 +252,29 @@ public class AntExec extends Builder {
         //Get and prepare ant-contrib.jar
         if (noAntcontrib == null || !noAntcontrib) {
             //TODO: Replace this with better methot
-            if (verbose != null && verbose) listener.getLogger().println(Messages.AntExec_UseAntContribTasks());
+            if (verbose != null && verbose) {
+                listener.getLogger().println(Messages.AntExec_UseAntContribTasks());
+            }
             FilePath antContribJarOnMaster = new FilePath(Hudson.getInstance().getRootPath(), "plugins/antexec/META-INF/lib/ant-contrib.jar");
             FilePath antLibDir = new FilePath(build.getWorkspace(), "antlib");
             FilePath antContribJar = new FilePath(antLibDir, "ant-contrib.jar");
             antContribJar.copyFrom(antContribJarOnMaster.toURI().toURL());
             args.add("-lib", antLibDir.getName());
         } else {
-            if (verbose != null && verbose) listener.getLogger().println(Messages.AntExec_UseAntCoreTasksOnly());
+            if (verbose != null && verbose) {
+                listener.getLogger().println(Messages.AntExec_UseAntCoreTasksOnly());
+            }
         }
 
         //Add Ant option: -verbose
-        if (verbose != null && verbose) args.add("-verbose");
+        if (verbose != null && verbose) {
+            args.add("-verbose");
+        }
 
         //Add Ant option: -emacs
-        if (emacs != null && emacs) args.add("-emacs");
+        if (emacs != null && emacs) {
+            args.add("-emacs");
+        }
 
         //Fixing command line for windows
         if (!launcher.isUnix()) {
@@ -282,8 +311,9 @@ public class AntExec extends Builder {
                 //The plugin is a way to run an Ant Script from a small source code, we shoudn't keep the antexec_build.xml
                 if (keepBuildfile == null || !keepBuildfile) {
                     boolean deleteResponse = buildFile.delete();
-                    if (!deleteResponse)
+                    if (!deleteResponse) {
                         listener.getLogger().println("The temporary Ant Build Script coudn't be deleted");
+                    }
                 }
             }
             return r == 0;
@@ -292,12 +322,13 @@ public class AntExec extends Builder {
 
             String errorMessage = hudson.tasks.Messages.Ant_ExecFailed();
             if (ai == null && (System.currentTimeMillis() - startTime) < 1000) {
-                if (getDescriptor().getInstallations() == null)
-                    // looks like the user didn't configure any Ant installation
+                if (getDescriptor().getInstallations() == null) // looks like the user didn't configure any Ant installation
+                {
                     errorMessage += hudson.tasks.Messages.Ant_GlobalConfigNeeded();
-                else
-                    // There are Ant installations configured but the project didn't pick it
+                } else // There are Ant installations configured but the project didn't pick it
+                {
                     errorMessage += hudson.tasks.Messages.Ant_ProjectConfigNeeded();
+                }
             }
             e.printStackTrace(listener.fatalError(errorMessage));
             return false;
