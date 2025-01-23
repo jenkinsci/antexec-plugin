@@ -40,6 +40,9 @@ import org.kohsuke.stapler.QueryParameter;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 import javax.xml.parsers.SAXParserFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.ByteArrayOutputStream;
@@ -353,7 +356,12 @@ public class AntExec extends Builder {
         }
 
         //Check if entered script source is wellformed xml document
+        @RequirePOST
+        @Restricted(NoExternalUse.class)
         public FormValidation doCheckScriptSource(@QueryParameter String value) throws IOException, ParserConfigurationException, SAXException {
+            // Check if the user has the necessary permissions
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+
             String xmlContent = makeBuildFileXml("", value, "test_script");
             try {
                 SAXParserFactory factory = SAXParserFactory.newInstance();
