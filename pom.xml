@@ -60,7 +60,7 @@
             <dependency>
                 <groupId>org.jenkins-ci.tools</groupId>
                 <artifactId>maven-hpi-plugin</artifactId>
-                <version>3.62</version>
+                <version>3.63</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
