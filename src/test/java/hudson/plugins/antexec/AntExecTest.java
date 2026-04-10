@@ -5,6 +5,7 @@ import hudson.model.FreeStyleProject;
 import hudson.model.Result;
 import hudson.tasks.Ant;
 import hudson.util.FormValidation;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
@@ -192,13 +193,38 @@ class AntExecTest {
         assertEquals(FormValidation.Kind.ERROR, result.kind);
     }
 
+    // ── Ant test helpers ─────────────────────────────────────────────────────
+
+    private static final String DEFAULT_ANT = "default";
+
+    /** Resolve ANT_HOME from the environment variable, fall back to standard Linux path. */
+    private static String getAntHome() {
+        String antHome = System.getenv("ANT_HOME");
+        return antHome != null ? antHome : "/usr/share/ant";
+    }
+
+    /**
+     * Skips the test if Ant is not installed, otherwise registers an
+     * {@link Ant.AntInstallation} named {@link #DEFAULT_ANT} on the Jenkins instance.
+     */
+    private static void requireAnt(JenkinsRule j) {
+        String antHome = getAntHome();
+        java.io.File bin = new java.io.File(antHome, "bin/ant");
+        java.io.File binBat = new java.io.File(antHome, "bin/ant.bat");
+        Assumptions.assumeTrue(bin.isFile() || binBat.isFile(),
+                "Ant not installed at " + antHome + " – set ANT_HOME to fix");
+        Ant.AntInstallation inst = new Ant.AntInstallation(DEFAULT_ANT, antHome, null);
+        j.jenkins.getDescriptorByType(Ant.DescriptorImpl.class).setInstallations(inst);
+    }
+
     // ── perform (integration) ─────────────────────────────────────────────────
 
     @Test
     void perform_simpleEcho_succeeds(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<echo message='Hello from AntExec'/>", "", "",
-                "", null, "", false, false, false, true);
+                "", DEFAULT_ANT, "", false, false, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = j.buildAndAssertSuccess(project);
         j.assertLogContains("Hello from AntExec", build);
@@ -206,9 +232,10 @@ class AntExecTest {
 
     @Test
     void perform_withProperties_succeeds(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<echo message='val=${myprop}'/>", "", "",
-                "myprop=hello123", null, "", false, false, false, true);
+                "myprop=hello123", DEFAULT_ANT, "", false, false, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = j.buildAndAssertSuccess(project);
         j.assertLogContains("val=hello123", build);
@@ -216,9 +243,10 @@ class AntExecTest {
 
     @Test
     void perform_malformedScript_fails(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<this is not valid xml", "", "",
-                "", null, "", false, false, false, true);
+                "", DEFAULT_ANT, "", false, false, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = project.scheduleBuild2(0).get();
         assertEquals(Result.FAILURE, build.getResult());
@@ -226,9 +254,10 @@ class AntExecTest {
 
     @Test
     void perform_withVerbose_succeeds(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<echo message='verbose test'/>", "", "",
-                "", null, "", false, true, false, true);
+                "", DEFAULT_ANT, "", false, true, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = j.buildAndAssertSuccess(project);
         j.assertLogContains("verbose test", build);
@@ -236,9 +265,10 @@ class AntExecTest {
 
     @Test
     void perform_withEmacs_succeeds(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<echo message='emacs test'/>", "", "",
-                "", null, "", false, false, true, true);
+                "", DEFAULT_ANT, "", false, false, true, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = j.buildAndAssertSuccess(project);
         j.assertLogContains("emacs test", build);
@@ -246,9 +276,10 @@ class AntExecTest {
 
     @Test
     void perform_keepBuildfile_fileRetained(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<echo message='keep'/>", "", "",
-                "", null, "", true, false, false, true);
+                "", DEFAULT_ANT, "", true, false, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = j.buildAndAssertSuccess(project);
         assertTrue(build.getWorkspace().child(AntExec.buildXml).exists());
@@ -256,9 +287,10 @@ class AntExecTest {
 
     @Test
     void perform_noKeepBuildfile_fileDeleted(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<echo message='delete'/>", "", "",
-                "", null, "", false, false, false, true);
+                "", DEFAULT_ANT, "", false, false, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = j.buildAndAssertSuccess(project);
         assertFalse(build.getWorkspace().child(AntExec.buildXml).exists());
@@ -266,9 +298,10 @@ class AntExecTest {
 
     @Test
     void perform_customScriptName_usesIt(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<echo message='custom'/>", "", "mybuild",
-                "", null, "", true, false, false, true);
+                "", DEFAULT_ANT, "", true, false, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = j.buildAndAssertSuccess(project);
         assertTrue(build.getWorkspace().child("mybuild").exists());
@@ -276,10 +309,11 @@ class AntExecTest {
 
     @Test
     void perform_withExtendedSource_succeeds(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         String extendedSource = "<target name='extra'><echo message='from extra target'/></target>";
         AntExec step = new AntExec("<antcall target='extra'/>", extendedSource, "",
-                "", null, "", false, false, false, true);
+                "", DEFAULT_ANT, "", false, false, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = j.buildAndAssertSuccess(project);
         j.assertLogContains("from extra target", build);
@@ -287,9 +321,10 @@ class AntExecTest {
 
     @Test
     void perform_nullProperties_withBuildVars_succeeds(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<echo message='ok'/>", "", "",
-                null, null, "", false, false, false, true);
+                null, DEFAULT_ANT, "", false, false, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = j.buildAndAssertSuccess(project);
         j.assertLogContains("ok", build);
@@ -297,9 +332,10 @@ class AntExecTest {
 
     @Test
     void perform_withAntOpts_succeeds(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<echo message='opts test'/>", "", "",
-                "", null, "-Xmx128m", false, false, false, true);
+                "", DEFAULT_ANT, "-Xmx128m", false, false, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = j.buildAndAssertSuccess(project);
         j.assertLogContains("opts test", build);
@@ -307,9 +343,10 @@ class AntExecTest {
 
     @Test
     void perform_verboseWithProperties_logsDebugInfo(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<echo message='debug'/>", "", "",
-                "key=value", null, "", false, true, false, true);
+                "key=value", DEFAULT_ANT, "", false, true, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = j.buildAndAssertSuccess(project);
         j.assertLogContains("key=value", build);
@@ -317,9 +354,10 @@ class AntExecTest {
 
     @Test
     void perform_withAntContrib_disabled_verbose_logsMessage(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<echo message='no antcontrib'/>", "", "",
-                "", null, "", false, true, false, true);
+                "", DEFAULT_ANT, "", false, true, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = j.buildAndAssertSuccess(project);
         j.assertLogContains("no antcontrib", build);
@@ -327,9 +365,10 @@ class AntExecTest {
 
     @Test
     void perform_keepBuildfile_withProperties_bothRetained(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<echo message='keep props'/>", "", "",
-                "k=v", null, "", true, false, false, true);
+                "k=v", DEFAULT_ANT, "", true, false, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = j.buildAndAssertSuccess(project);
         assertTrue(build.getWorkspace().child(AntExec.buildXml).exists());
@@ -338,9 +377,10 @@ class AntExecTest {
 
     @Test
     void perform_noKeepBuildfile_withProperties_bothDeleted(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<echo message='del props'/>", "", "",
-                "k=v", null, "", false, false, false, true);
+                "k=v", DEFAULT_ANT, "", false, false, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = j.buildAndAssertSuccess(project);
         assertFalse(build.getWorkspace().child(AntExec.buildXml).exists());
@@ -349,9 +389,10 @@ class AntExecTest {
 
     @Test
     void perform_failingTarget_returnsFalse(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<fail message='intentional failure'/>", "", "",
-                "", null, "", false, false, false, true);
+                "", DEFAULT_ANT, "", false, false, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = project.scheduleBuild2(0).get();
         assertEquals(Result.FAILURE, build.getResult());
@@ -359,9 +400,10 @@ class AntExecTest {
 
     @Test
     void perform_customScriptName_propertyFileUsesCustomName(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
         AntExec step = new AntExec("<echo message='val=${cprop}'/>", "", "custom_build",
-                "cprop=customval", null, "", true, false, false, true);
+                "cprop=customval", DEFAULT_ANT, "", true, false, false, true);
         project.getBuildersList().add(step);
         FreeStyleBuild build = j.buildAndAssertSuccess(project);
         j.assertLogContains("val=customval", build);
@@ -369,32 +411,23 @@ class AntExecTest {
         assertTrue(build.getWorkspace().child("custom_build.properties").exists());
     }
 
-    // ── perform with configured Ant installation ──────────────────────────────
-
-    /** Resolve ANT_HOME from the environment variable, fall back to standard Linux path. */
-    private static String getAntHome() {
-        String antHome = System.getenv("ANT_HOME");
-        return antHome != null ? antHome : "/usr/share/ant";
-    }
-
     @Test
-    void perform_withConfiguredAntInstallation_succeeds(JenkinsRule j) throws Exception {
-        Ant.AntInstallation inst = new Ant.AntInstallation("myAnt", getAntHome(), null);
-        j.jenkins.getDescriptorByType(Ant.DescriptorImpl.class).setInstallations(inst);
-
+    void perform_verboseWithProperties_logsScriptSourceDebug(JenkinsRule j) throws Exception {
+        requireAnt(j);
         FreeStyleProject project = j.createFreeStyleProject();
-        AntExec step = new AntExec("<echo message='configured ant'/>", "", "",
-                "", "myAnt", "-Xmx64m", false, false, false, true);
+        AntExec step = new AntExec("<echo message='dbg'/>", "", "",
+                "debugprop=debugval", DEFAULT_ANT, "", false, true, false, true);
         project.getBuildersList().add(step);
-        FreeStyleBuild build = project.scheduleBuild2(0).get();
-        // Configured installation may fail to resolve executable in test harness,
-        // but the code path through getAnt() -> forNode() -> forEnvironment() is exercised
-        assertNotNull(build.getResult());
+        FreeStyleBuild build = j.buildAndAssertSuccess(project);
+        j.assertLogContains("echo message", build);
+        j.assertLogContains("debugprop=debugval", build);
     }
+
+    // ── getAnt with configured installations ──────────────────────────────────
 
     @Test
     void getAnt_matchesConfiguredInstallation(JenkinsRule j) {
-        Ant.AntInstallation inst = new Ant.AntInstallation("testAnt", getAntHome(), null);
+        Ant.AntInstallation inst = new Ant.AntInstallation("testAnt", "/dummy", null);
         j.jenkins.getDescriptorByType(Ant.DescriptorImpl.class).setInstallations(inst);
 
         AntExec step = new AntExec("<echo/>", "", "", "", "testAnt", "",
@@ -405,25 +438,11 @@ class AntExecTest {
 
     @Test
     void getAnt_noMatch_returnsNull(JenkinsRule j) {
-        Ant.AntInstallation inst = new Ant.AntInstallation("otherAnt", getAntHome(), null);
+        Ant.AntInstallation inst = new Ant.AntInstallation("otherAnt", "/dummy", null);
         j.jenkins.getDescriptorByType(Ant.DescriptorImpl.class).setInstallations(inst);
 
         AntExec step = new AntExec("<echo/>", "", "", "", "nonexistent", "",
                 false, false, false, true);
         assertNull(step.getAnt());
-    }
-
-    // ── verbose output with properties ────────────────────────────────────────
-
-    @Test
-    void perform_verboseWithProperties_logsScriptSourceDebug(JenkinsRule j) throws Exception {
-        FreeStyleProject project = j.createFreeStyleProject();
-        AntExec step = new AntExec("<echo message='dbg'/>", "", "",
-                "debugprop=debugval", null, "", false, true, false, true);
-        project.getBuildersList().add(step);
-        FreeStyleBuild build = j.buildAndAssertSuccess(project);
-        // verbose mode prints script source and properties debug blocks
-        j.assertLogContains("echo message", build);
-        j.assertLogContains("debugprop=debugval", build);
     }
 }
