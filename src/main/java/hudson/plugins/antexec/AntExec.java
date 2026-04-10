@@ -380,8 +380,10 @@ public class AntExec extends Builder {
         }
 
         //Check if entered extended script source is wellformed xml document
-        @SuppressWarnings("unused")
-        private FormValidation doCheckExtendedScriptSource(@QueryParameter String value) throws IOException, ParserConfigurationException {
+        @RequirePOST
+        @Restricted(NoExternalUse.class)
+        public FormValidation doCheckExtendedScriptSource(@QueryParameter String value) throws IOException, ParserConfigurationException {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             String xmlContent = makeBuildFileXml(value, "", "test_script");
             try {
                 SAXParserFactory factory = SAXParserFactory.newInstance();
