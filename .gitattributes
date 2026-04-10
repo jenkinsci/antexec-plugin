@@ -4,4 +4,8 @@
 # Exclude HTML documentation files from GitHub language statistics
 src/main/resources/**/*.html linguist-documentation=true
 
+# Exclude Groovy files from GitHub language statistics
+Jenkinsfile linguist-vendored=true
+src/main/resources/**/*.groovy linguist-detectable=false
+
 
