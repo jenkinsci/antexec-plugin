@@ -60,7 +60,6 @@ import java.util.logging.Logger;
  *
  * @author Milos Svasek
  */
-@SuppressWarnings("ALL")
 public class AntExec extends Builder {
     private static final String myName = "antexec";
     protected static final String buildXml = myName + "_build.xml";
@@ -76,7 +75,6 @@ public class AntExec extends Builder {
     private final String antName;
 
     // Fields in config.groovy must match the parameter names in the "DataBoundConstructor"
-    @SuppressWarnings("ALL")
     @DataBoundConstructor
     public AntExec(String scriptSource, String extendedScriptSource, String scriptName, String properties, String antName, String antOpts, Boolean keepBuildfile, Boolean verbose, Boolean emacs, Boolean noAntcontrib) {
         this.scriptSource = scriptSource;
