@@ -222,7 +222,11 @@ public class AntExec extends Builder {
         if (ai == null) {
             args.add(launcher.isUnix() ? "ant" : "ant.bat");
         } else {
-            Node node = Computer.currentComputer().getNode();
+            Computer computer = Computer.currentComputer();
+            if (computer == null) {
+                throw new AbortException("Cannot get current computer, since it is not online");
+            }
+            Node node = computer.getNode();
             if (node == null) {
                 throw new AbortException("Cannot get installation for node, since it is not online");
             }
