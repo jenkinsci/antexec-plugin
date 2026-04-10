@@ -321,9 +321,6 @@ public class AntExec extends Builder {
                     boolean deleteResponse2 = buildFile.delete();
                     if (!deleteResponse2)
                         listener.getLogger().println("The temporary Ant Build Script coudn't be deleted");
-
-                    //if (noAntcontrib == null || !noAntcontrib);
-                    //    antLibDir.deleteRecursive();
                 }
             }
             return r == 0;
