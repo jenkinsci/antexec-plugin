@@ -197,10 +197,13 @@ public class AntExec extends Builder {
             // Add build properties
             myMergedProperties.putAll(build.getBuildVariables());
             // Add properties from text field "Properties" on job configuration screen
-            byte[] bytes = properties.getBytes("UTF-8");
-            ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-            InputStreamReader isr = new InputStreamReader(bais, "UTF-8");
-            myMergedProperties.load(isr);
+            if (properties != null && !properties.isEmpty()) {
+                byte[] bytes = properties.getBytes("UTF-8");
+                ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+                try (InputStreamReader isr = new InputStreamReader(bais, "UTF-8")) {
+                    myMergedProperties.load(isr);
+                }
+            }
             // Create property file
             propertyFile = makePropertyFile(scriptName, build, myMergedProperties);
         }
