@@ -263,7 +263,9 @@ public class AntExec extends Builder {
             antLibDir = new FilePath(ws, "antlib");
             if (!antLibDir.exists()) {
                 FilePath antContribJar = new FilePath(antLibDir, "ant-contrib.jar");
-                FilePath antContribJarOnMaster = new FilePath(Jenkins.get().getRootPath(), "plugins/antexec/META-INF/lib/ant-contrib.jar");
+                FilePath jenkinsRoot = Jenkins.get().getRootPath();
+                if (jenkinsRoot == null) throw new AbortException("Cannot get Jenkins root path");
+                FilePath antContribJarOnMaster = new FilePath(jenkinsRoot, "plugins/antexec/META-INF/lib/ant-contrib.jar");
                 antContribJar.copyFrom(antContribJarOnMaster.toURI().toURL());
             }
             args.add("-lib", antLibDir.getName());
